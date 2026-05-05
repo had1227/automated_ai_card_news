@@ -1,0 +1,296 @@
+topics:
+  - name: AI 모델 출시
+    keywords:
+      - ChatGPT
+      - Claude
+      - Gemini
+      - Llama
+      - Mistral
+      - DeepSeek
+      - Qwen
+      - GLM
+      - Kimi
+      - NVIDIA AI
+      - Mimo
+
+  - name: AI 에이전트와 개발도구
+    keywords:
+      - AI agent
+      - coding agent
+      - MCP
+      - AI assistant
+      - Copilot
+
+# --------------------------
+# RSS
+# --------------------------
+
+rss:
+  - name: OpenAI News
+    url: https://openai.com/news/rss.xml
+
+  - name: Hugging Face Blog
+    url: https://huggingface.co/blog/feed.xml
+
+# --------------------------
+# 공식 사이트
+# --------------------------
+
+sites:
+  # ===== 글로벌 =====
+
+  # - name: OpenAI News
+  #   url: https://openai.com/news/
+  #   item_selector: "a"
+  #   url_contains: "/index/"
+
+  - name: Anthropic News
+    url: https://www.anthropic.com/news
+    item_selector: "a[href^='/news/']"
+    url_contains: "/news/"
+    max_items: 10
+
+  - name: Google Gemini Blog
+    url: https://blog.google/products-and-platforms/products/gemini/
+    item_selector: "a"
+    url_contains: "/products"
+    max_items: 10
+
+  - name: Google DeepMind Blog
+    url: https://deepmind.google/blog/
+    item_selector: "a"
+    url_contains: "/blog/"
+    max_items: 10
+
+  - name: Hugging Face Blog
+    url: https://huggingface.co/blog
+    item_selector: "a"
+    url_contains: "/blog/"
+    max_items: 10
+
+  - name: Mistral News
+    url: https://mistral.ai/news
+    item_selector: "a"
+    url_contains: "/news/"
+    max_items: 10
+
+  - name: Microsoft AI News
+    url: https://news.microsoft.com/source/topics/ai/
+    item_selector: "a"
+    url_contains: "news.microsoft.com/source"
+    max_items: 10
+
+  - name: NVIDIA AI Blog
+    url: https://blogs.nvidia.com/blog/tag/artificial-intelligence/
+    item_selector: "a"
+    url_contains: "blogs.nvidia.com/blog/"
+    max_items: 10
+    
+  - name: NVIDIA Generative AI Blog
+    url: https://blogs.nvidia.com/blog/category/generative-ai/
+    item_selector: "a"
+    url_contains: "blogs.nvidia.com/blog/"
+    max_items: 10
+
+  - name: NVIDIA Research
+    url: https://research.nvidia.com/
+    item_selector: "a"
+    max_items: 10
+
+  - name: NVIDIA Developer Blog
+    url: https://developer.nvidia.com/blog/
+    item_selector: "a"
+    url_contains: "developer.nvidia.com"
+    max_items: 10
+
+  - name: NVIDIA Developer Generative AI
+    url: https://developer.nvidia.com/blog/category/generative-ai/
+    item_selector: "a"
+    url_contains: "developer.nvidia.com/blog/"
+    max_items: 10
+
+  - name: Higgsfield AI
+    url: https://higgsfield.ai/blog
+    item_selector: "a"
+    url_contains: "/blog"
+    max_items: 10
+
+  # ===== 중국 AI =====
+
+  - name: Kimi (Moonshot AI)
+    url: https://www.moonshot.cn/
+    item_selector: "a"
+    max_items: 10
+
+  - name: Zhipu AI (GLM)
+    url: https://www.zhipuai.cn/
+    item_selector: "a"
+    max_items: 10
+
+  - name: DeepSeek
+    url: https://www.deepseek.com/
+    item_selector: "a"
+    max_items: 10
+
+  - name: DeepSeek GitHub
+    url: https://github.com/deepseek-ai
+    item_selector: "a"
+    max_items: 10
+
+  - name: Qwen Official
+    url: https://qwenlm.github.io/
+    item_selector: "a"
+    max_items: 10
+
+  - name: Qwen GitHub
+    url: https://github.com/QwenLM
+    item_selector: "a"
+    max_items: 10
+
+  - name: Baidu AI
+    url: https://ai.baidu.com/
+    item_selector: "a"
+    max_items: 10
+
+  - name: Tencent Hunyuan
+    url: https://hunyuan.tencent.com/
+    item_selector: "a"
+    max_items: 10
+
+  - name: Tencent AI Research
+    url: https://hy.tencent.com/
+    item_selector: "a"
+    max_items: 10
+
+  - name: ByteDance Seed Blog
+    url: https://seed.bytedance.com/blog
+    item_selector: "a"
+    url_contains: "/blog/"
+    max_items: 10
+
+  - name: Mimo AI
+    url: https://mimo.ai/
+    item_selector: "a"
+    max_items: 10
+    
+# --------------------------
+# YouTube RSS
+# --------------------------
+
+# youtube_channels:
+#   - name: OpenAI
+#     channel_id: UCXZCJLdBC09xxGZ6gcdrc6A
+
+#   - name: Google DeepMind
+#     channel_id: UCP7jMXSY2xbc3KCAE0MHQ-A
+
+# --------------------------
+# 검색 기반 수집 (핵심)
+# --------------------------
+
+web_search:
+  enabled: false
+  max_results_per_keyword: 3
+
+  search_sites:
+    # 글로벌
+    - openai.com
+    - anthropic.com
+    - huggingface.co
+    - ai.meta.com
+    - mistral.ai
+    - blogs.microsoft.com
+    - github.com
+
+    # NVIDIA
+    - nvidia.com
+    - developer.nvidia.com
+    - research.nvidia.com
+
+    # 중국
+    - qwenlm.github.io
+    - moonshot.cn
+    - zhipuai.cn
+    - deepseek.com
+    - qwen.aliyun.com
+    - ai.baidu.com
+    - ai.tencent.com
+    - volcengine.com
+    - mimo.ai
+    
+google_news:
+  queries:
+    - "AI model release"
+    - "LLM announcement"
+    - "AI startup funding"
+    - "AI acquisition"
+    - "AI policy regulation"
+    
+# --------------------------
+# SNS 직접 크롤링 (비활성 권장)
+# --------------------------
+
+x_accounts:
+  - name: OpenAI
+    url: https://x.com/OpenAI
+
+  - name: Anthropic
+    url: https://x.com/AnthropicAI
+
+  - name: Google DeepMind
+    url: https://x.com/GoogleDeepMind
+
+  - name: Meta AI
+    url: https://x.com/AIatMeta
+
+  - name: xAI
+    url: https://x.com/xai
+
+  - name: Hugging Face
+    url: https://x.com/huggingface
+
+  - name: Mistral AI
+    url: https://x.com/MistralAI
+
+  - name: NVIDIA AI
+    url: https://x.com/NVIDIAAI
+    
+  - name: Higgsfield AI
+    url: https://x.com/higgsfield_ai
+
+  - name: DeepSeek
+    url: https://x.com/deepseek_ai
+
+  - name: Qwen (Alibaba)
+    url: https://x.com/Alibaba_Qwen
+
+  - name: Zhipu AI (GLM)
+    url: https://x.com/zhipu_ai
+
+  - name: Moonshot AI (Kimi)
+    url: https://x.com/moonshot_ai
+
+  - name: ByteDance
+    url: https://x.com/BytedanceTalk
+
+  - name: Xiaomi Mimo
+    url: https://x.com/XiaomiMiMo
+
+# threads_accounts:
+#   - name: OpenAI
+#     url: https://www.threads.net/@openai
+
+#   - name: Meta AI
+#     url: https://www.threads.net/@metaai
+
+#   - name: Google
+#     url: https://www.threads.net/@google
+
+#   - name: NVIDIA
+#     url: https://www.threads.net/@nvidia
+
+#   - name: Hugging Face
+#     url: https://www.threads.net/@huggingface
+
+#   - name: Mistral AI
+#     url: https://www.threads.net/@mistralai
