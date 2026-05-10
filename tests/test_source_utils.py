@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+import source_utils
 from source_utils import (
     CODE_DOMAINS,
     OFFICIAL_DOMAINS,
@@ -33,6 +34,10 @@ def test_domain_sets_match_task_3_plan():
     assert RESEARCH_DOMAINS == {"arxiv.org", "export.arxiv.org", "paperswithcode.com"}
     assert CODE_DOMAINS == {"github.com", "huggingface.co"}
     assert SOCIAL_DOMAINS == {"x.com", "twitter.com", "threads.net"}
+
+
+def test_media_domains_is_not_exported():
+    assert not hasattr(source_utils, "MEDIA_DOMAINS")
 
 
 def test_clean_domain_lowercases_and_removes_www():

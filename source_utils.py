@@ -37,20 +37,6 @@ SOCIAL_DOMAINS = {
     "x.com",
 }
 
-MEDIA_DOMAINS = {
-    "404media.co",
-    "axios.com",
-    "bbc.com",
-    "bloomberg.com",
-    "cnbc.com",
-    "cnn.com",
-    "nytimes.com",
-    "techcrunch.com",
-    "theinformation.com",
-    "theverge.com",
-    "wired.com",
-}
-
 TRUST_SCORES = {
     "official": 1.0,
     "research": 0.9,
@@ -93,8 +79,6 @@ def classify_source(url):
         return "code"
     if domain in SOCIAL_DOMAINS:
         return "social"
-    if domain in MEDIA_DOMAINS:
-        return "media"
 
     return "media"
 
