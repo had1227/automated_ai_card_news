@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 
 
 INPUT_PATH = Path("data/top_news.json")
+FACTS_PATH = Path("data/news_facts.json")
 OUTPUT_PATH = Path("data/cards.json")
 
 MODEL = "gemma4:e4b"
@@ -37,6 +38,12 @@ def load_top_news():
     if not INPUT_PATH.exists():
         raise FileNotFoundError(f"{INPUT_PATH} 파일이 없습니다.")
     return json.loads(INPUT_PATH.read_text(encoding="utf-8"))
+
+
+def load_news_facts():
+    if not FACTS_PATH.exists():
+        return None
+    return json.loads(FACTS_PATH.read_text(encoding="utf-8"))
 
 
 def save_cards(cards):
@@ -168,6 +175,58 @@ def enrich_top_news(top_news):
     return enriched
 
 
+def facts_to_top_news_like(facts):
+    top_news = []
+
+    for record in facts:
+        if not isinstance(record, dict):
+            continue
+
+        try:
+            confidence = float(record.get("confidence", 0))
+        except (TypeError, ValueError):
+            confidence = 0.0
+
+        score = confidence * 100
+        facts_list = record.get("facts") if isinstance(record.get("facts"), list) else []
+        evidence_list = (
+            record.get("evidence") if isinstance(record.get("evidence"), list) else []
+        )
+        reason = "; ".join(str(item) for item in facts_list if str(item).strip())
+        source_domain = record.get("source_domain") or domain(record.get("url"))
+
+        article_parts = []
+        if facts_list:
+            article_parts.append("Facts:")
+            article_parts.extend(str(item) for item in facts_list if str(item).strip())
+        if evidence_list:
+            article_parts.append("Evidence:")
+            article_parts.extend(str(item) for item in evidence_list if str(item).strip())
+
+        top_news.append({
+            "title": record.get("title"),
+            "summary": record.get("summary"),
+            "reason": reason,
+            "category": record.get("category"),
+            "score": score,
+            "importance": score,
+            "impact": score,
+            "novelty": score,
+            "confidence": confidence,
+            "url": record.get("url"),
+            "article_domain": source_domain,
+            "source_domain": source_domain,
+            "article_text": "\n".join(article_parts),
+            "facts": facts_list,
+            "evidence": evidence_list,
+            "entities": record.get("entities", []),
+            "numbers": record.get("numbers", []),
+        })
+
+    top_news.sort(key=lambda item: item.get("score", 0), reverse=True)
+    return top_news
+
+
 def compact_top_news(top_news, max_items=10):
     compacted = []
 
@@ -185,7 +244,12 @@ def compact_top_news(top_news, max_items=10):
             "confidence": item.get("confidence"),
             "url": item.get("url"),
             "source": item.get("article_domain") or domain(item.get("url")),
+            "source_domain": item.get("source_domain"),
             "article_text": item.get("article_text", "")[:MAX_ARTICLE_CHARS],
+            "facts": item.get("facts", []),
+            "evidence": item.get("evidence", []),
+            "entities": item.get("entities", []),
+            "numbers": item.get("numbers", []),
         })
 
     return compacted
@@ -215,6 +279,12 @@ AI 엔지니어·연구자·기술 기획자를 대상으로 하는
 - 불필요하게 뉴스를 서로 억지로 묶지 마라.
 
 입력 뉴스:
+Grounding rules:
+- If facts, evidence, entities, or numbers fields exist, use them as the primary grounding.
+- Do not create NEWS cards without source_urls.
+- Do not invent numbers, dates, benchmarks, features, or comparisons absent from evidence.
+- Every NEWS card source_urls field must include the source URL for that news item.
+
 {top_news_json}
 
 출력은 반드시 아래 JSON 형식만 사용하라.
@@ -393,14 +463,24 @@ def validate_cards(data):
 
 
 def main():
-    top_news = load_top_news()
-    print(f"TOP 뉴스 입력: {len(top_news)}개")
+    facts = load_news_facts()
+    if isinstance(facts, dict):
+        facts = facts.get("records") or facts.get("facts") or []
 
-    print("원문 URL fetch 중...")
-    enriched_news = enrich_top_news(top_news)
+    if facts:
+        enriched_news = facts_to_top_news_like(facts)
+        print(f"Using extracted facts for card writing: {len(enriched_news)} records")
+    else:
+        if facts is not None:
+            print("[WARN] data/news_facts.json has no records; falling back to top_news enrichment")
+        top_news = load_top_news()
+        print(f"TOP 뉴스 입력: {len(top_news)}개")
 
-    fetched_count = sum(1 for item in enriched_news if item.get("article_text"))
-    print(f"원문/fallback 텍스트 확보: {fetched_count}/{len(enriched_news)}개")
+        print("원문 URL fetch 중...")
+        enriched_news = enrich_top_news(top_news)
+
+        fetched_count = sum(1 for item in enriched_news if item.get("article_text"))
+        print(f"원문/fallback 텍스트 확보: {fetched_count}/{len(enriched_news)}개")
 
     prompt = build_prompt(enriched_news)
     cards = call_ollama(prompt)
