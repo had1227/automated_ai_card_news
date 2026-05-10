@@ -23,25 +23,15 @@ OFFICIAL_DOMAINS = {
 RESEARCH_DOMAINS = {
     "arxiv.org",
     "export.arxiv.org",
-    "nature.com",
-    "openreview.net",
     "paperswithcode.com",
-    "science.org",
-    "semanticscholar.org",
 }
 
 CODE_DOMAINS = {
     "github.com",
-    "gitlab.com",
-    "pypi.org",
+    "huggingface.co",
 }
 
 SOCIAL_DOMAINS = {
-    "bsky.app",
-    "facebook.com",
-    "instagram.com",
-    "linkedin.com",
-    "reddit.com",
     "threads.net",
     "twitter.com",
     "x.com",

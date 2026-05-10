@@ -1,6 +1,10 @@
 from datetime import datetime, timezone
 
 from source_utils import (
+    CODE_DOMAINS,
+    OFFICIAL_DOMAINS,
+    RESEARCH_DOMAINS,
+    SOCIAL_DOMAINS,
     classify_source,
     clean_domain,
     is_google_news_url,
@@ -8,6 +12,27 @@ from source_utils import (
     prune_history,
     source_trust_score,
 )
+
+
+def test_domain_sets_match_task_3_plan():
+    assert OFFICIAL_DOMAINS == {
+        "openai.com",
+        "anthropic.com",
+        "deepmind.google",
+        "blog.google",
+        "huggingface.co",
+        "mistral.ai",
+        "nvidia.com",
+        "developer.nvidia.com",
+        "research.nvidia.com",
+        "moonshot.cn",
+        "zhipuai.cn",
+        "deepseek.com",
+        "qwenlm.github.io",
+    }
+    assert RESEARCH_DOMAINS == {"arxiv.org", "export.arxiv.org", "paperswithcode.com"}
+    assert CODE_DOMAINS == {"github.com", "huggingface.co"}
+    assert SOCIAL_DOMAINS == {"x.com", "twitter.com", "threads.net"}
 
 
 def test_clean_domain_lowercases_and_removes_www():
