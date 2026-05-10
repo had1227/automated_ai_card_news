@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 
 VALID_VISUAL_TYPES = {"diagram", "chart", "timeline", "comparison", "abstract"}
 VALID_CARD_TYPES = {"cover", "news", "insight", "summary", "actionable"}
@@ -66,9 +68,11 @@ def validate_top_news_item(item):
     _require_non_empty_text(item, "summary", "top_news_item")
     _require_non_empty_text(item, "url", "top_news_item")
     try:
-        float(item["score"])
+        score = float(item["score"])
     except (TypeError, ValueError) as exc:
         raise ValueError("top_news_item.score must be numeric") from exc
+    if not math.isfinite(score):
+        raise ValueError("top_news_item.score must be finite")
     _require_list(item, "cluster", "top_news_item")
 
 
@@ -101,6 +105,8 @@ def validate_fact_record(record):
         confidence = float(record["confidence"])
     except (TypeError, ValueError) as exc:
         raise ValueError("fact_record.confidence must be numeric") from exc
+    if not math.isfinite(confidence):
+        raise ValueError("fact_record.confidence must be finite")
     if confidence < 0 or confidence > 1:
         raise ValueError("fact_record.confidence must be between 0 and 1")
 

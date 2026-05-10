@@ -8,6 +8,57 @@ from schemas import (
 )
 
 
+def _valid_top_news_item(**overrides):
+    item = {
+        "score": 91.0,
+        "title": "Model release",
+        "summary": "A model was released.",
+        "reason": "Official announcement.",
+        "category": "model_release",
+        "url": "https://example.com/news",
+        "source_count": 1,
+        "cluster": [],
+    }
+    item.update(overrides)
+    return item
+
+
+def _valid_fact_record(**overrides):
+    record = {
+        "rank": 1,
+        "title": "Model release",
+        "url": "https://example.com/news",
+        "source_domain": "example.com",
+        "category": "model_release",
+        "summary": "A model was released.",
+        "facts": ["A model was released."],
+        "evidence": ["https://example.com/news"],
+        "entities": ["Example AI"],
+        "numbers": [],
+        "confidence": 0.8,
+    }
+    record.update(overrides)
+    return record
+
+
+def _valid_cards_data(**card_overrides):
+    card = {
+        "slide": 2,
+        "type": "news",
+        "headline": "New model announced",
+        "body": ["Brief summary", "Evidence-backed explanation"],
+        "image_hint": "model diagram",
+        "visual_type": "diagram",
+        "source_urls": ["https://example.com/news"],
+    }
+    card.update(card_overrides)
+    return {
+        "issue_title": "Weekly AI News",
+        "issue_summary": "Top AI stories.",
+        "cards": [card],
+    }
+
+
 def test_validate_item_accepts_minimal_valid_item():
     item = {
         "platform": "rss",
@@ -32,36 +83,39 @@ def test_validate_item_rejects_missing_title():
 
 
 def test_validate_top_news_item_accepts_ranked_item():
-    item = {
-        "score": 91.0,
-        "title": "Model release",
-        "summary": "A model was released.",
-        "reason": "Official announcement.",
-        "category": "model_release",
-        "url": "https://example.com/news",
-        "source_count": 1,
-        "cluster": [],
-    }
+    item = _valid_top_news_item()
 
     validate_top_news_item(item)
 
 
+@pytest.mark.parametrize("score", [float("nan"), "inf", "-inf"])
+def test_validate_top_news_item_rejects_non_finite_score(score):
+    item = _valid_top_news_item(score=score)
+
+    with pytest.raises(ValueError, match="finite"):
+        validate_top_news_item(item)
+
+
 def test_validate_fact_record_requires_evidence():
-    record = {
-        "rank": 1,
-        "title": "Model release",
-        "url": "https://example.com/news",
-        "source_domain": "example.com",
-        "category": "model_release",
-        "summary": "A model was released.",
-        "facts": ["A model was released."],
-        "evidence": [],
-        "entities": ["Example AI"],
-        "numbers": [],
-        "confidence": 0.8,
-    }
+    record = _valid_fact_record(evidence=[])
 
     with pytest.raises(ValueError, match="evidence"):
+        validate_fact_record(record)
+
+
+@pytest.mark.parametrize("confidence", [float("nan"), "inf", "-inf"])
+def test_validate_fact_record_rejects_non_finite_confidence(confidence):
+    record = _valid_fact_record(confidence=confidence)
+
+    with pytest.raises(ValueError, match="finite"):
+        validate_fact_record(record)
+
+
+@pytest.mark.parametrize("confidence", [-0.1, 1.1])
+def test_validate_fact_record_rejects_out_of_range_confidence(confidence):
+    record = _valid_fact_record(confidence=confidence)
+
+    with pytest.raises(ValueError, match="between 0 and 1"):
         validate_fact_record(record)
 
 
@@ -96,3 +150,31 @@ def test_validate_cards_accepts_valid_cards():
     }
 
     validate_cards(data)
+
+
+def test_validate_cards_rejects_invalid_card_type():
+    data = _valid_cards_data(type="feature")
+
+    with pytest.raises(ValueError, match="type is invalid"):
+        validate_cards(data)
+
+
+def test_validate_cards_rejects_invalid_visual_type():
+    data = _valid_cards_data(visual_type="photo")
+
+    with pytest.raises(ValueError, match="visual_type is invalid"):
+        validate_cards(data)
+
+
+def test_validate_cards_rejects_news_card_empty_source_urls():
+    data = _valid_cards_data(source_urls=[])
+
+    with pytest.raises(ValueError, match="source_urls"):
+        validate_cards(data)
+
+
+def test_validate_cards_rejects_non_list_body():
+    data = _valid_cards_data(body="Brief summary")
+
+    with pytest.raises(ValueError, match="body must be a list"):
+        validate_cards(data)
