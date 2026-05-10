@@ -389,16 +389,26 @@ def render_news(card):
         y += 24
 
     if bullet_lines:
-        draw_bullets(
+        accent_top = 760
+        max_body_height = max(0, accent_top - y)
+        body_font, line_height, paragraph_gap = fit_bullet_font_for_box(
+            draw,
+            bullet_lines,
+            WIDTH - 280,
+            max_body_height,
+            BODY_SIZE
+        )
+
+        y = draw_bullets(
             draw,
             bullet_lines,
             140,
             y,
             WIDTH - 280,
-            load_font(BODY_SIZE),
-            LINE_HEIGHT_BODY,
+            body_font,
+            line_height,
             TEXT,
-            paragraph_gap=12
+            paragraph_gap
         )
 
     visual_type = card.get("visual_type", "abstract")
