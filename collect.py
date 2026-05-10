@@ -6,6 +6,7 @@ from pathlib import Path
 import yaml
 from tqdm import tqdm
 
+from source_utils import prune_history
 from collectors.rss_collector import collect_rss
 from collectors.site_collector import collect_site
 from collectors.youtube_rss_collector import collect_youtube_channel_rss
@@ -178,7 +179,7 @@ def main():
     save_json(DATA_PATH, new_items)
 
     # 전체 히스토리는 누적 저장
-    updated_history = history_items + new_items
+    updated_history = prune_history(history_items + new_items)
     save_json(HISTORY_PATH, updated_history)
 
     print("\n📊 결과 요약")
