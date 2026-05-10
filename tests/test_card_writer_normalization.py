@@ -1,3 +1,4 @@
+import card_writer
 from card_writer import facts_to_top_news_like, normalize_cards
 
 
@@ -57,3 +58,35 @@ def test_facts_to_top_news_like_preserves_grounding_fields():
     assert item["evidence"] == records[0]["evidence"]
     assert item["entities"] == records[0]["entities"]
     assert item["numbers"] == records[0]["numbers"]
+
+
+def test_main_warns_when_news_facts_missing(monkeypatch, capsys):
+    monkeypatch.setattr(card_writer, "load_news_facts", lambda: None)
+    monkeypatch.setattr(card_writer, "load_top_news", lambda: [{"title": "Fallback"}])
+    monkeypatch.setattr(card_writer, "enrich_top_news", lambda top_news: top_news)
+    monkeypatch.setattr(card_writer, "build_prompt", lambda enriched_news: "prompt")
+    monkeypatch.setattr(
+        card_writer,
+        "call_ollama",
+        lambda prompt: {
+            "issue_title": "Issue",
+            "issue_summary": "",
+            "cards": [
+                {
+                    "slide": index,
+                    "type": "news",
+                    "headline": f"Card {index}",
+                    "body": ["Body"],
+                    "image_hint": "",
+                    "visual_type": "abstract",
+                    "source_urls": [],
+                }
+                for index in range(1, 9)
+            ],
+        },
+    )
+    monkeypatch.setattr(card_writer, "save_cards", lambda cards: None)
+
+    card_writer.main()
+
+    assert "[WARN] data/news_facts.json is missing; falling back to top_news enrichment" in capsys.readouterr().out

@@ -471,7 +471,9 @@ def main():
         enriched_news = facts_to_top_news_like(facts)
         print(f"Using extracted facts for card writing: {len(enriched_news)} records")
     else:
-        if facts is not None:
+        if facts is None:
+            print("[WARN] data/news_facts.json is missing; falling back to top_news enrichment")
+        else:
             print("[WARN] data/news_facts.json has no records; falling back to top_news enrichment")
         top_news = load_top_news()
         print(f"TOP 뉴스 입력: {len(top_news)}개")
