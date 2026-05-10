@@ -103,6 +103,9 @@ def parse_datetime(value):
 
 
 def prune_history(items, keep_days=45, max_items=5000, now=None):
+    if max_items <= 0:
+        return []
+
     current_time = now or datetime.now(timezone.utc)
     if current_time.tzinfo is None:
         current_time = current_time.replace(tzinfo=timezone.utc)

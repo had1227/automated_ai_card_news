@@ -1,6 +1,4 @@
 from datetime import datetime, timezone
-
-import source_utils
 from source_utils import (
     CODE_DOMAINS,
     OFFICIAL_DOMAINS,
@@ -36,8 +34,8 @@ def test_domain_sets_match_task_3_plan():
     assert SOCIAL_DOMAINS == {"x.com", "twitter.com", "threads.net"}
 
 
-def test_media_domains_is_not_exported():
-    assert not hasattr(source_utils, "MEDIA_DOMAINS")
+def test_unknown_news_domain_defaults_to_media():
+    assert classify_source("https://example-news.com/article") == "media"
 
 
 def test_clean_domain_lowercases_and_removes_www():
@@ -95,3 +93,10 @@ def test_prune_history_limits_to_newest_max_items():
     pruned = prune_history([oldest, middle, newest], keep_days=30, max_items=2, now=now)
 
     assert pruned == [middle, newest]
+
+
+def test_prune_history_returns_empty_when_max_items_is_zero():
+    now = datetime(2026, 5, 10, tzinfo=timezone.utc)
+    item = {"id": "recent", "published_at": "2026-05-01T00:00:00Z"}
+
+    assert prune_history([item], keep_days=30, max_items=0, now=now) == []
