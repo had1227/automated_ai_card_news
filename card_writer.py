@@ -10,6 +10,8 @@ from playwright.sync_api import sync_playwright
 import requests
 from bs4 import BeautifulSoup
 
+from schemas import validate_cards as validate_cards_schema
+
 
 INPUT_PATH = Path("data/top_news.json")
 FACTS_PATH = Path("data/news_facts.json")
@@ -175,19 +177,28 @@ def enrich_top_news(top_news):
     return enriched
 
 
+def fact_rank(record, fallback_rank):
+    try:
+        rank = int(record.get("rank", fallback_rank))
+    except (TypeError, ValueError):
+        rank = fallback_rank
+    return max(rank, 1)
+
+
 def facts_to_top_news_like(facts):
     top_news = []
 
-    for record in facts:
+    for fallback_rank, record in enumerate(facts, start=1):
         if not isinstance(record, dict):
             continue
 
+        rank = fact_rank(record, fallback_rank)
         try:
             confidence = float(record.get("confidence", 0))
         except (TypeError, ValueError):
             confidence = 0.0
 
-        score = confidence * 100
+        score = 1000 - rank
         facts_list = record.get("facts") if isinstance(record.get("facts"), list) else []
         evidence_list = (
             record.get("evidence") if isinstance(record.get("evidence"), list) else []
@@ -204,6 +215,7 @@ def facts_to_top_news_like(facts):
             article_parts.extend(str(item) for item in evidence_list if str(item).strip())
 
         top_news.append({
+            "rank": rank,
             "title": record.get("title"),
             "summary": record.get("summary"),
             "reason": reason,
@@ -223,7 +235,6 @@ def facts_to_top_news_like(facts):
             "numbers": record.get("numbers", []),
         })
 
-    top_news.sort(key=lambda item: item.get("score", 0), reverse=True)
     return top_news
 
 
@@ -232,7 +243,7 @@ def compact_top_news(top_news, max_items=10):
 
     for idx, item in enumerate(top_news[:max_items], start=1):
         compacted.append({
-            "rank": idx,
+            "rank": item.get("rank", idx),
             "title": item.get("title"),
             "summary": item.get("summary"),
             "reason": item.get("reason"),
@@ -459,30 +470,46 @@ def validate_cards(data):
         if not isinstance(card["body"], list):
             raise ValueError(f"{idx}번 카드 body는 list여야 합니다.")
 
+    validate_cards_schema(data)
     return True
 
 
-def main():
-    facts = load_news_facts()
+def enrich_from_top_news():
+    top_news = load_top_news()
+    print(f"TOP 뉴스 입력: {len(top_news)}개")
+
+    print("원문 URL fetch 중...")
+    enriched_news = enrich_top_news(top_news)
+
+    fetched_count = sum(1 for item in enriched_news if item.get("article_text"))
+    print(f"원문/fallback 텍스트 확보: {fetched_count}/{len(enriched_news)}개")
+    return enriched_news
+
+
+def select_enriched_news(facts):
     if isinstance(facts, dict):
         facts = facts.get("records") or facts.get("facts") or []
 
     if facts:
         enriched_news = facts_to_top_news_like(facts)
-        print(f"Using extracted facts for card writing: {len(enriched_news)} records")
+        if enriched_news:
+            print(f"Using extracted facts for card writing: {len(enriched_news)} records")
+            return enriched_news
+        print(
+            "[WARN] data/news_facts.json had records, but none were valid dicts; "
+            "falling back to top_news enrichment"
+        )
+    elif facts is None:
+        print("[WARN] data/news_facts.json is missing; falling back to top_news enrichment")
     else:
-        if facts is None:
-            print("[WARN] data/news_facts.json is missing; falling back to top_news enrichment")
-        else:
-            print("[WARN] data/news_facts.json has no records; falling back to top_news enrichment")
-        top_news = load_top_news()
-        print(f"TOP 뉴스 입력: {len(top_news)}개")
+        print("[WARN] data/news_facts.json has no records; falling back to top_news enrichment")
 
-        print("원문 URL fetch 중...")
-        enriched_news = enrich_top_news(top_news)
+    return enrich_from_top_news()
 
-        fetched_count = sum(1 for item in enriched_news if item.get("article_text"))
-        print(f"원문/fallback 텍스트 확보: {fetched_count}/{len(enriched_news)}개")
+
+def main():
+    facts = load_news_facts()
+    enriched_news = select_enriched_news(facts)
 
     prompt = build_prompt(enriched_news)
     cards = call_ollama(prompt)

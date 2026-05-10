@@ -1,5 +1,12 @@
 import card_writer
-from card_writer import facts_to_top_news_like, normalize_cards
+import pytest
+from card_writer import (
+    compact_top_news,
+    facts_to_top_news_like,
+    normalize_cards,
+    select_enriched_news,
+    validate_cards,
+)
 
 
 def test_normalize_cards_defaults_optional_card_fields_and_body_string():
@@ -39,17 +46,20 @@ def test_facts_to_top_news_like_preserves_grounding_fields():
             "entities": ["Example Lab"],
             "numbers": ["2 benchmark results"],
             "confidence": 0.82,
+            "rank": 3,
         }
     ]
 
     [item] = facts_to_top_news_like(records)
 
+    assert item["rank"] == 3
     assert item["title"] == "Model release"
     assert item["reason"] == "The model was released.; It supports tool use."
-    assert item["score"] == 82.0
-    assert item["importance"] == 82.0
-    assert item["impact"] == 82.0
-    assert item["novelty"] == 82.0
+    assert item["score"] == 997
+    assert item["importance"] == 997
+    assert item["impact"] == 997
+    assert item["novelty"] == 997
+    assert item["confidence"] == 0.82
     assert item["article_domain"] == "example.com"
     assert item["source_domain"] == "example.com"
     assert "The model was released." in item["article_text"]
@@ -58,6 +68,74 @@ def test_facts_to_top_news_like_preserves_grounding_fields():
     assert item["evidence"] == records[0]["evidence"]
     assert item["entities"] == records[0]["entities"]
     assert item["numbers"] == records[0]["numbers"]
+
+
+def test_facts_to_top_news_like_preserves_fact_order_and_scores_from_rank():
+    records = [
+        {
+            "rank": 1,
+            "title": "First ranked item",
+            "summary": "First summary",
+            "url": "https://example.com/first",
+            "confidence": 0.2,
+        },
+        {
+            "rank": 2,
+            "title": "Second ranked item",
+            "summary": "Second summary",
+            "url": "https://example.com/second",
+            "confidence": 0.99,
+        },
+    ]
+
+    items = facts_to_top_news_like(records)
+    compacted = compact_top_news(items)
+
+    assert [item["title"] for item in items] == ["First ranked item", "Second ranked item"]
+    assert [item["rank"] for item in items] == [1, 2]
+    assert [item["score"] for item in items] == [999, 998]
+    assert [item["confidence"] for item in items] == [0.2, 0.99]
+    assert [item["rank"] for item in compacted] == [1, 2]
+
+
+def test_validate_cards_rejects_news_card_without_source_urls():
+    data = {
+        "issue_title": "Issue",
+        "issue_summary": "Summary",
+        "cards": [
+            {
+                "slide": 1,
+                "type": "cover",
+                "headline": "WEEKLY AI NEWS",
+                "body": ["2026.05.04 - 2026.05.10"],
+                "image_hint": "",
+                "visual_type": "abstract",
+                "source_urls": [],
+            },
+            {
+                "slide": 2,
+                "type": "news",
+                "headline": "A grounded AI update",
+                "body": ["One concise bullet"],
+                "image_hint": "",
+                "visual_type": "abstract",
+                "source_urls": [],
+            },
+        ],
+    }
+
+    with pytest.raises(ValueError, match="source_urls"):
+        validate_cards(data)
+
+
+def test_select_enriched_news_falls_back_when_truthy_facts_convert_empty(monkeypatch, capsys):
+    monkeypatch.setattr(card_writer, "load_top_news", lambda: [{"title": "Fallback"}])
+    monkeypatch.setattr(card_writer, "enrich_top_news", lambda top_news: top_news)
+
+    enriched_news = select_enriched_news(["not a dict"])
+
+    assert enriched_news == [{"title": "Fallback"}]
+    assert "none were valid dicts" in capsys.readouterr().out
 
 
 def test_main_warns_when_news_facts_missing(monkeypatch, capsys):
@@ -70,18 +148,29 @@ def test_main_warns_when_news_facts_missing(monkeypatch, capsys):
         "call_ollama",
         lambda prompt: {
             "issue_title": "Issue",
-            "issue_summary": "",
+            "issue_summary": "Summary",
             "cards": [
                 {
-                    "slide": index,
-                    "type": "news",
-                    "headline": f"Card {index}",
+                    "slide": 1,
+                    "type": "cover",
+                    "headline": "WEEKLY AI NEWS",
                     "body": ["Body"],
                     "image_hint": "",
                     "visual_type": "abstract",
                     "source_urls": [],
-                }
-                for index in range(1, 9)
+                },
+                *[
+                    {
+                        "slide": index,
+                        "type": "news",
+                        "headline": f"Card {index}",
+                        "body": ["Body"],
+                        "image_hint": "",
+                        "visual_type": "abstract",
+                        "source_urls": [f"https://example.com/{index}"],
+                    }
+                    for index in range(2, 9)
+                ],
             ],
         },
     )
