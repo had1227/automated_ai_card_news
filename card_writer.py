@@ -344,12 +344,7 @@ Grounding rules:
 - 출처 URL은 카드 본문에 넣지 말고 source_urls 필드에 넣어라.
 - 각 NEWS 카드의 source_urls에는 해당 뉴스의 URL을 반드시 포함하라.
 
-visual_type은 아래 중 하나만 사용하라:
-- diagram
-- chart
-- timeline
-- comparison
-- abstract
+visual_type은 호환성을 위한 메타데이터다. 특별한 의미를 부여하지 말고 "abstract"를 사용하라.
 """.strip()
 
 
@@ -400,11 +395,6 @@ def normalize_cards(data):
 
         if isinstance(card["body"], str):
             card["body"] = [card["body"]]
-
-        if card["visual_type"] not in {
-            "diagram", "chart", "timeline", "comparison", "abstract"
-        }:
-            card["visual_type"] = "abstract"
 
     return data
 

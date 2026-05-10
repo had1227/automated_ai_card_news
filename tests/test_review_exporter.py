@@ -80,7 +80,7 @@ def test_build_html_includes_card_fact_context_and_review_warnings():
     assert 'src="01.png"' in html
     assert "slide 1" in html
     assert "cover" in html
-    assert "abstract" in html
+    assert "abstract" not in html
     assert "Missing news source URLs" in html
     assert "Low confidence fact: 0.64" in html
     assert "Fact one" in html

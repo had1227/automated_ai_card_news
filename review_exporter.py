@@ -125,7 +125,6 @@ def _render_warnings(card, fact):
 def _render_card(card, fact):
     slide = card.get("slide", "")
     card_type = card.get("type", "")
-    visual_type = card.get("visual_type", "")
     headline = str(card.get("headline", ""))
     body = _as_list(card.get("body"))
     source_urls = _as_list(card.get("source_urls"))
@@ -135,7 +134,7 @@ def _render_card(card, fact):
 
     meta = " / ".join(
         html.escape(str(value))
-        for value in [f"slide {slide}", card_type, visual_type]
+        for value in [f"slide {slide}", card_type]
         if str(value).strip()
     )
 

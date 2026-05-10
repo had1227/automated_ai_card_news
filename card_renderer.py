@@ -30,8 +30,6 @@ LINE_HEIGHT_KEY = 62
 FONT_REGULAR = "fonts/Pretendard-Regular.otf"
 FONT_BOLD = "fonts/Pretendard-Bold.otf"
 
-VALID_VISUAL_TYPES = {"diagram", "chart", "timeline", "comparison", "abstract"}
-
 OUTPUT_DIR = Path("output")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -481,9 +479,7 @@ def validate_render_card(card):
     if not isinstance(card["body"], list):
         raise ValueError("body must be a list")
 
-    visual_type = card.setdefault("visual_type", "abstract")
-    if visual_type not in VALID_VISUAL_TYPES:
-        raise ValueError(f"invalid visual_type: {visual_type}")
+    card.setdefault("visual_type", "abstract")
 
 
 def render_card(card):

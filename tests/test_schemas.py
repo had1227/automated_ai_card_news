@@ -168,11 +168,10 @@ def test_validate_cards_rejects_invalid_card_type():
         validate_cards(data)
 
 
-def test_validate_cards_rejects_invalid_visual_type():
+def test_validate_cards_allows_visual_type_as_ignored_metadata():
     data = _valid_cards_data(visual_type="photo")
 
-    with pytest.raises(ValueError, match="visual_type is invalid"):
-        validate_cards(data)
+    validate_cards(data)
 
 
 def test_validate_cards_rejects_news_card_empty_source_urls():

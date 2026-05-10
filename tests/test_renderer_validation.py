@@ -23,8 +23,7 @@ def test_validate_render_card_rejects_missing_headline():
         validate_render_card(card)
 
 
-def test_validate_render_card_rejects_invalid_visual_type():
+def test_validate_render_card_keeps_visual_type_as_ignored_metadata():
     card = _valid_card(visual_type="photo")
 
-    with pytest.raises(ValueError, match="visual_type"):
-        validate_render_card(card)
+    validate_render_card(card)

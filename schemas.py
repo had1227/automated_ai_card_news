@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 
 
-VALID_VISUAL_TYPES = {"diagram", "chart", "timeline", "comparison", "abstract"}
 VALID_CARD_TYPES = {"cover", "news", "insight", "summary", "actionable"}
 
 
@@ -134,8 +133,6 @@ def validate_cards(data):
         )
         if card["type"] not in VALID_CARD_TYPES:
             raise ValueError(f"{label}.type is invalid: {card['type']}")
-        if card["visual_type"] not in VALID_VISUAL_TYPES:
-            raise ValueError(f"{label}.visual_type is invalid: {card['visual_type']}")
         _require_non_empty_text(card, "headline", label)
         body = _require_list(card, "body", label)
         if not all(isinstance(line, str) for line in body):
