@@ -294,51 +294,6 @@ def draw_source_label(draw, card):
     )
 
 
-def draw_diagram_accent(draw):
-    boxes = [
-        [155, 900, 305, 965],
-        [465, 900, 615, 965],
-        [775, 900, 925, 965],
-    ]
-
-    for box in boxes:
-        draw.rounded_rectangle(box, radius=16, outline=PRIMARY, width=4)
-
-    draw.line([305, 932, 465, 932], fill=PRIMARY, width=4)
-    draw.line([615, 932, 775, 932], fill=PRIMARY, width=4)
-
-
-def draw_timeline_accent(draw):
-    y = 930
-    draw.line([160, y, 920, y], fill=PRIMARY, width=5)
-
-    for x in [170, 420, 670, 910]:
-        draw.ellipse([x - 13, y - 13, x + 13, y + 13], fill=PRIMARY)
-
-
-def draw_comparison_accent(draw):
-    font = load_font(24, True)
-    left = [210, 885, 475, 970]
-    right = [605, 885, 870, 970]
-
-    draw.rounded_rectangle(left, radius=18, outline=PRIMARY, width=4)
-    draw.rounded_rectangle(right, radius=18, outline=PRIMARY, width=4)
-    draw.text((342, 928), "A", anchor="mm", font=font, fill=PRIMARY)
-    draw.text((738, 928), "B", anchor="mm", font=font, fill=PRIMARY)
-
-
-def draw_chart_accent(draw):
-    bars = [
-        [230, 930, 310, 970],
-        [390, 900, 470, 970],
-        [550, 870, 630, 970],
-        [710, 910, 790, 970],
-    ]
-
-    for bar in bars:
-        draw.rounded_rectangle(bar, radius=10, fill=PRIMARY)
-
-
 def render_news(card):
     img, draw = create_base()
 
@@ -410,16 +365,6 @@ def render_news(card):
             TEXT,
             paragraph_gap
         )
-
-    visual_type = card.get("visual_type", "abstract")
-    if visual_type == "diagram":
-        draw_diagram_accent(draw)
-    elif visual_type == "timeline":
-        draw_timeline_accent(draw)
-    elif visual_type == "comparison":
-        draw_comparison_accent(draw)
-    elif visual_type == "chart":
-        draw_chart_accent(draw)
 
     draw_source_label(draw, card)
 
