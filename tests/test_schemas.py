@@ -76,7 +76,16 @@ def test_validate_item_accepts_minimal_valid_item():
 
 
 def test_validate_item_rejects_missing_title():
-    item = {"url": "https://example.com/news"}
+    item = {
+        "platform": "rss",
+        "collection_mode": "source",
+        "source_account": "OpenAI",
+        "text": "OpenAI announced a new model.",
+        "url": "https://example.com/news",
+        "published_at": "2026-05-09T00:00:00+00:00",
+        "metrics": {},
+        "media_urls": [],
+    }
 
     with pytest.raises(ValueError, match="title"):
         validate_item(item)

@@ -66,6 +66,17 @@ def _as_text_list(value, fallback=None):
     return [item for item in fallback_items if item]
 
 
+def _unique_text_list(items):
+    unique = []
+    seen = set()
+    for item in _as_text_list(items):
+        if item in seen:
+            continue
+        seen.add(item)
+        unique.append(item)
+    return unique
+
+
 def _cluster_entries(item):
     cluster = item.get("cluster", []) if isinstance(item, dict) else []
     if not isinstance(cluster, list):
@@ -119,7 +130,14 @@ def fallback_record(rank, item):
     summary = summary or cluster_entry["summary"] or cluster_entry["text"] or title
 
     fact = summary or reason or cluster_text or title
-    evidence_items = _as_text_list([reason, summary, cluster_text, title], [fact])
+    cluster_evidence = (
+        cluster_text
+        if cluster_entry["text"] or cluster_entry["summary"] or cluster_entry["url"]
+        else ""
+    )
+    evidence_items = _unique_text_list([reason, summary, cluster_evidence, title])
+    if not evidence_items:
+        evidence_items = [fact]
 
     record = {
         "rank": rank,
