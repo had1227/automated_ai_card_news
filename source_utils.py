@@ -6,16 +6,26 @@ from dateutil import parser as date_parser
 
 OFFICIAL_DOMAINS = {
     "anthropic.com",
+    "blog.google",
     "deepmind.google",
-    "googleblog.com",
-    "microsoft.com",
+    "deepseek.com",
+    "developer.nvidia.com",
+    "huggingface.co",
+    "mistral.ai",
+    "moonshot.cn",
+    "nvidia.com",
     "openai.com",
+    "qwenlm.github.io",
+    "research.nvidia.com",
+    "zhipuai.cn",
 }
 
 RESEARCH_DOMAINS = {
     "arxiv.org",
+    "export.arxiv.org",
     "nature.com",
     "openreview.net",
+    "paperswithcode.com",
     "science.org",
     "semanticscholar.org",
 }
@@ -23,7 +33,6 @@ RESEARCH_DOMAINS = {
 CODE_DOMAINS = {
     "github.com",
     "gitlab.com",
-    "huggingface.co",
     "pypi.org",
 }
 
