@@ -1,3 +1,4 @@
+import json
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -18,6 +19,24 @@ HEADERS = {
 }
 
 MAX_WORKERS = 8
+MODEL = "gemma4:e4b"
+OLLAMA_URL = "http://localhost:11434/api/generate"
+LLM_RECENCY_CONFIDENCE_THRESHOLD = 0.7
+LLM_RECENCY_TEXT_CHARS = 2500
+NOISE_URL_PARTS = (
+    "/privacy",
+    "/policies",
+    "/terms",
+    "terms-of-service",
+    "/legal",
+    "/login",
+    "/signin",
+    "/sign-in",
+    "/signup",
+    "/sign-up",
+    "/account",
+    "/cookies",
+)
 
 
 def clean_text(text):
@@ -47,6 +66,20 @@ def is_within_days(value, days=7):
     return dt >= cutoff
 
 
+def is_within_days_at(value, days=7, now=None):
+    dt = parse_date(value)
+
+    if dt is None:
+        return None
+
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+
+    cutoff = now - timedelta(days=days)
+    return dt >= cutoff
+
+
 def is_valid_href(href):
     if not href:
         return False
@@ -57,7 +90,15 @@ def is_valid_href(href):
     if len(href) > 500:
         return False
 
+    if is_noise_url(href):
+        return False
+
     return True
+
+
+def is_noise_url(url):
+    value = str(url or "").lower()
+    return any(part in value for part in NOISE_URL_PARTS)
 
 
 def extract_title(soup, fallback=""):
@@ -123,6 +164,113 @@ def extract_text(soup):
     return clean_text(soup.get_text(" ", strip=True))[:4000]
 
 
+def extract_json_object(text):
+    value = str(text or "").strip()
+    if not value:
+        raise ValueError("empty Ollama response")
+
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        start = value.find("{")
+        end = value.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            raise
+        return json.loads(value[start : end + 1])
+
+
+def build_recency_prompt(title, text, now=None):
+    now = now or datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=7)
+    payload = {
+        "current_date": now.date().isoformat(),
+        "recent_cutoff_date": cutoff.date().isoformat(),
+        "title": clean_text(title),
+        "text": clean_text(text)[:LLM_RECENCY_TEXT_CHARS],
+    }
+
+    return f"""
+You are deciding whether a crawled website article should be kept for a weekly AI news pipeline.
+
+Use only the JSON data below. Decide whether the article content appears to be published, announced, or updated on or after recent_cutoff_date.
+
+Rules:
+- Return JSON only.
+- If the article has no clear date signal, set is_recent to true with low confidence.
+- Only set is_recent to false when the content clearly points to an older date.
+- Do not infer from unrelated copyright, privacy, or footer dates.
+
+Return exactly:
+{{
+  "is_recent": true,
+  "published_date": "YYYY-MM-DD or unknown",
+  "confidence": 0.0,
+  "reason": "short reason"
+}}
+
+JSON data:
+{json.dumps(payload, ensure_ascii=False, indent=2)}
+""".strip()
+
+
+def call_recency_llm(title, text, now=None):
+    response = requests.post(
+        OLLAMA_URL,
+        json={
+            "model": MODEL,
+            "prompt": build_recency_prompt(title, text, now=now),
+            "stream": False,
+            "format": "json",
+            "options": {"temperature": 0.0},
+        },
+        timeout=90,
+    )
+    response.raise_for_status()
+    return extract_json_object(response.json().get("response", ""))
+
+
+def as_confidence(value):
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return max(0.0, min(1.0, confidence))
+
+
+def as_bool(value, default=True):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "yes", "1"}:
+            return True
+        if normalized in {"false", "no", "0"}:
+            return False
+    return default
+
+
+def is_probably_recent_by_llm(title, text, now=None):
+    try:
+        judgment = call_recency_llm(title, text, now=now)
+    except Exception as e:
+        print(f"[WARN] site recency LLM failed - {e}")
+        return True
+
+    if as_bool(judgment.get("is_recent", True), default=True):
+        return True
+
+    confidence = as_confidence(judgment.get("confidence", 0.0))
+    return confidence < LLM_RECENCY_CONFIDENCE_THRESHOLD
+
+
+def should_keep_article(published_raw, title, text, now=None):
+    structured_recent = is_within_days_at(published_raw, days=7, now=now)
+    if structured_recent is not None:
+        return structured_recent
+
+    return is_probably_recent_by_llm(title, text, now=now)
+
+
 def fetch_soup(url):
     res = requests.get(url, headers=HEADERS, timeout=12, allow_redirects=True)
     res.raise_for_status()
@@ -136,13 +284,12 @@ def fetch_article(url, title_hint, source_name):
         title = extract_title(soup, title_hint)
         published_raw = extract_date(soup)
 
-        # 날짜가 잡히면 7일 이내만 유지
-        if not is_within_days(published_raw, days=7):
-            return None
-
         text = extract_text(soup)
 
         if len(text) < 200:
+            return None
+
+        if not should_keep_article(published_raw, title, text):
             return None
 
         return {

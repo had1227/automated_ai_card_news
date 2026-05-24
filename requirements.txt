@@ -12,3 +12,4 @@ numpy
 sentence-transformers
 Pillow
 pytest
+pypdf

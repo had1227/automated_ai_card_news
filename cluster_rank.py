@@ -14,6 +14,7 @@ OUTPUT_PATH = Path("data/top_news.json")
 
 TOP_N = 10
 SIM_THRESHOLD = 0.78
+MAX_EVALUATION_TEXT_CHARS = 1200
 
 MODEL = "gemma4:e4b"
 OLLAMA_URL = "http://localhost:11434/api/generate"
@@ -102,7 +103,9 @@ def ollama_json(prompt, max_retries=2, timeout=120):
 
 def ai_evaluate_cluster(cluster, max_retries=2):
     titles = "\n".join([f"- {i['title']}" for i in cluster[:5]])
-    texts = "\n".join([f"- {i.get('text','')[:200]}" for i in cluster[:5]])
+    texts = "\n".join(
+        [f"- {i.get('text','')[:MAX_EVALUATION_TEXT_CHARS]}" for i in cluster[:5]]
+    )
 
     prompt = f"""
 너는 엄격한 AI 뉴스 큐레이션 에디터다.

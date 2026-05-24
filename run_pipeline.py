@@ -24,7 +24,7 @@ STAGES = {
     "review": "review_exporter.py",
 }
 
-ALL_STAGES = ["collect", "rank", "facts", "write", "render", "export", "review"]
+ALL_STAGES = ["collect", "rank", "facts", "export"]
 RENDER_ONLY_STAGES = ["render", "export", "review"]
 
 
@@ -72,7 +72,7 @@ def selected_stages(args):
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Run the AI news pipeline.")
-    parser.add_argument("--all", action="store_true", help="Run all stages.")
+    parser.add_argument("--all", action="store_true", help="Run the full HTML pipeline.")
     parser.add_argument(
         "--render-only",
         action="store_true",

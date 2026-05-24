@@ -47,6 +47,18 @@ def make_hash(item):
     return hashlib.sha256(base.encode("utf-8")).hexdigest()
 
 
+def has_text(value):
+    return isinstance(value, str) and bool(value.strip())
+
+
+def is_usable_item(item):
+    return (
+        isinstance(item, dict)
+        and has_text(item.get("title"))
+        and has_text(item.get("url"))
+    )
+
+
 def item_key(item):
     """
     URL이 있으면 URL 기준.
@@ -156,8 +168,13 @@ def main():
 
     current_seen = set()
     new_items = []
+    skipped_invalid = 0
 
     for item in tqdm(collected, desc="DEDUP"):
+        if not is_usable_item(item):
+            skipped_invalid += 1
+            continue
+
         item["hash"] = make_hash(item)
         key = item_key(item)
 
@@ -172,6 +189,9 @@ def main():
             continue
 
         new_items.append(item)
+
+    if skipped_invalid:
+        print(f"[WARN] skipped invalid collected items: {skipped_invalid}")
 
     log_step("저장")
 
