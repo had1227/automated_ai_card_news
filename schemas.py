@@ -83,6 +83,9 @@ def validate_fact_record(record):
         "source_domain",
         "category",
         "summary",
+        "korean_title",
+        "article_body",
+        "published_at",
         "facts",
         "evidence",
         "entities",
@@ -91,7 +94,14 @@ def validate_fact_record(record):
     ]
     _require_fields(record, required, "fact_record")
     _require_non_empty_text(record, "title", "fact_record")
+    _require_non_empty_text(record, "korean_title", "fact_record")
     _require_non_empty_text(record, "url", "fact_record")
+    article_body = _require_list(record, "article_body", "fact_record")
+    if not article_body or not all(
+        isinstance(paragraph, str) and paragraph.strip()
+        for paragraph in article_body
+    ):
+        raise ValueError("fact_record.article_body must contain non-empty paragraphs")
     facts = _require_list(record, "facts", "fact_record")
     evidence = _require_list(record, "evidence", "fact_record")
     _require_list(record, "entities", "fact_record")
