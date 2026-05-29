@@ -6,6 +6,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dateutil import parser as date_parser
 from datetime import datetime, timedelta, timezone
 
+from llm_client import generate_json
+
 
 HEADERS = {
     "User-Agent": (
@@ -19,10 +21,18 @@ HEADERS = {
 }
 
 MAX_WORKERS = 8
-MODEL = "gemma4:e4b"
-OLLAMA_URL = "http://localhost:11434/api/generate"
 LLM_RECENCY_CONFIDENCE_THRESHOLD = 0.7
 LLM_RECENCY_TEXT_CHARS = 2500
+RECENCY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "is_recent": {"type": "boolean"},
+        "published_date": {"type": "string"},
+        "confidence": {"type": "number"},
+        "reason": {"type": "string"},
+    },
+    "required": ["is_recent", "published_date", "confidence", "reason"],
+}
 NOISE_URL_PARTS = (
     "/privacy",
     "/policies",
@@ -164,21 +174,6 @@ def extract_text(soup):
     return clean_text(soup.get_text(" ", strip=True))[:4000]
 
 
-def extract_json_object(text):
-    value = str(text or "").strip()
-    if not value:
-        raise ValueError("empty Ollama response")
-
-    try:
-        return json.loads(value)
-    except json.JSONDecodeError:
-        start = value.find("{")
-        end = value.rfind("}")
-        if start == -1 or end == -1 or end <= start:
-            raise
-        return json.loads(value[start : end + 1])
-
-
 def build_recency_prompt(title, text, now=None):
     now = now or datetime.now(timezone.utc)
     cutoff = now - timedelta(days=7)
@@ -214,19 +209,11 @@ JSON data:
 
 
 def call_recency_llm(title, text, now=None):
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": MODEL,
-            "prompt": build_recency_prompt(title, text, now=now),
-            "stream": False,
-            "format": "json",
-            "options": {"temperature": 0.0},
-        },
-        timeout=90,
+    return generate_json(
+        build_recency_prompt(title, text, now=now),
+        RECENCY_SCHEMA,
+        temperature=0.0,
     )
-    response.raise_for_status()
-    return extract_json_object(response.json().get("response", ""))
 
 
 def as_confidence(value):
