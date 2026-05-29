@@ -87,10 +87,19 @@ def test_call_recency_llm_uses_gemini_structured_json(monkeypatch):
     assert "Released on May 24, 2026." in calls[0]["prompt"]
     assert calls[0]["response_schema"] == collector.RECENCY_SCHEMA
     assert calls[0]["temperature"] == 0.0
+    confidence_schema = collector.RECENCY_SCHEMA["properties"]["confidence"]
+    assert confidence_schema["minimum"] == 0.0
+    assert confidence_schema["maximum"] == 1.0
 
 
 def test_is_probably_recent_by_llm_keeps_uncertain_or_failed_judgments(monkeypatch):
     monkeypatch.setattr(collector, "call_recency_llm", lambda title, text, now=None: {"is_recent": False, "confidence": 0.4})
+
+    assert is_probably_recent_by_llm("Title", "Body", now=datetime(2026, 5, 21, tzinfo=timezone.utc))
+
+
+def test_is_probably_recent_by_llm_keeps_non_dict_judgment(monkeypatch):
+    monkeypatch.setattr(collector, "call_recency_llm", lambda title, text, now=None: [])
 
     assert is_probably_recent_by_llm("Title", "Body", now=datetime(2026, 5, 21, tzinfo=timezone.utc))
 

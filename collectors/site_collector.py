@@ -28,7 +28,7 @@ RECENCY_SCHEMA = {
     "properties": {
         "is_recent": {"type": "boolean"},
         "published_date": {"type": "string"},
-        "confidence": {"type": "number"},
+        "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
         "reason": {"type": "string"},
     },
     "required": ["is_recent", "published_date", "confidence", "reason"],
@@ -241,6 +241,9 @@ def is_probably_recent_by_llm(title, text, now=None):
         judgment = call_recency_llm(title, text, now=now)
     except Exception as e:
         print(f"[WARN] site recency LLM failed - {e}")
+        return True
+
+    if not isinstance(judgment, dict):
         return True
 
     if as_bool(judgment.get("is_recent", True), default=True):
