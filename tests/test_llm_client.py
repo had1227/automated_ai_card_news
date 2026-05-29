@@ -84,6 +84,18 @@ def test_generate_json_retries_gemini_api_failure():
     assert sleeps == [1]
 
 
+def test_generate_json_does_not_retry_permanent_gemini_api_failure():
+    client = Client([errors.ClientError(400, {"message": "bad"})])
+    sleeps = []
+    gemini = GeminiJsonClient(client=client, sleep=sleeps.append)
+
+    with pytest.raises(RuntimeError, match="Gemini JSON generation failed"):
+        gemini.generate_json("retry", {"type": "object"})
+
+    assert len(client.models.calls) == 1
+    assert sleeps == []
+
+
 def test_generate_json_fails_after_invalid_json_responses():
     client = Client(["not json", "still not json", "bad"])
     gemini = GeminiJsonClient(
@@ -113,14 +125,22 @@ def test_client_reads_model_from_environment(monkeypatch):
 
 
 def test_module_generate_json_uses_default_client(monkeypatch):
+    instances = []
+
     class FakeGeminiJsonClient:
+        def __init__(self):
+            self.calls = []
+            instances.append(self)
+
         def generate_json(self, prompt, response_schema, temperature=0.1):
+            self.calls.append((prompt, response_schema, temperature))
             return {
                 "prompt": prompt,
                 "schema": response_schema,
                 "temperature": temperature,
             }
 
+    monkeypatch.setattr(llm_client, "_default_client", None, raising=False)
     monkeypatch.setattr(llm_client, "GeminiJsonClient", FakeGeminiJsonClient)
 
     assert llm_client.generate_json("write", {"type": "object"}, temperature=0.0) == {
@@ -128,3 +148,13 @@ def test_module_generate_json_uses_default_client(monkeypatch):
         "schema": {"type": "object"},
         "temperature": 0.0,
     }
+    assert llm_client.generate_json("again", {"type": "object"}) == {
+        "prompt": "again",
+        "schema": {"type": "object"},
+        "temperature": 0.1,
+    }
+    assert len(instances) == 1
+    assert instances[0].calls == [
+        ("write", {"type": "object"}, 0.0),
+        ("again", {"type": "object"}, 0.1),
+    ]

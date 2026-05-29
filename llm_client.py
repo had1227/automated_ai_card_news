@@ -9,6 +9,20 @@ from google.genai import errors
 
 
 DEFAULT_MODEL = "gemini-2.5-flash"
+_default_client = None
+
+
+def _api_error_status(exc):
+    for attr in ("code", "status_code"):
+        value = getattr(exc, attr, None)
+        if value is not None:
+            return int(value)
+    return None
+
+
+def _is_retryable_api_error(exc):
+    status = _api_error_status(exc)
+    return status in (408, 429) or (status is not None and status >= 500)
 
 
 class GeminiJsonClient:
@@ -40,11 +54,29 @@ class GeminiJsonClient:
                 errors.APIError,
             ) as exc:
                 last_error = exc
+                if isinstance(exc, errors.APIError) and not _is_retryable_api_error(exc):
+                    break
                 if attempt + 1 < self.max_retries:
                     self.sleep(2**attempt)
 
         raise RuntimeError(f"Gemini JSON generation failed: {last_error}") from last_error
 
 
+def get_default_client():
+    global _default_client
+    if _default_client is None:
+        _default_client = GeminiJsonClient()
+    return _default_client
+
+
+def close_default_client():
+    global _default_client
+    if _default_client is not None:
+        close = getattr(getattr(_default_client, "client", None), "close", None)
+        if close is not None:
+            close()
+        _default_client = None
+
+
 def generate_json(prompt, response_schema, temperature=0.1):
-    return GeminiJsonClient().generate_json(prompt, response_schema, temperature)
+    return get_default_client().generate_json(prompt, response_schema, temperature)
