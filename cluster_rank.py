@@ -24,10 +24,10 @@ CLUSTER_EVALUATION_SCHEMA = {
         "is_ai_news": {"type": "boolean"},
         "is_card_news_worthy": {"type": "boolean"},
         "category": {"type": "string"},
-        "importance": {"type": "number"},
-        "trending": {"type": "number"},
-        "novelty": {"type": "number"},
-        "confidence": {"type": "number"},
+        "importance": {"type": "number", "minimum": 0, "maximum": 10},
+        "trending": {"type": "number", "minimum": 0, "maximum": 10},
+        "novelty": {"type": "number", "minimum": 0, "maximum": 10},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 10},
         "reason": {"type": "string"},
         "one_line_summary": {"type": "string"},
     },
@@ -48,7 +48,7 @@ DUPLICATE_SCHEMA = {
     "type": "object",
     "properties": {
         "is_duplicate": {"type": "boolean"},
-        "confidence": {"type": "number"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "reason": {"type": "string"},
     },
     "required": ["is_duplicate", "confidence", "reason"],
@@ -148,7 +148,11 @@ def ai_evaluate_cluster(cluster, max_retries=2):
 내용:
 {texts}
 """
-    return generate_json(prompt, CLUSTER_EVALUATION_SCHEMA, temperature=0.1)
+    try:
+        return generate_json(prompt, CLUSTER_EVALUATION_SCHEMA, temperature=0.1)
+    except RuntimeError as exc:
+        print(f"[WARN] Gemini evaluation failure: {exc}")
+        return None
 
 
 def representative(cluster):
@@ -194,11 +198,16 @@ def ai_is_duplicate(candidate, selected_item, max_retries=1):
 이유: {selected_item.get("reason")}
 """
     try:
-        data = generate_json(prompt, DUPLICATE_SCHEMA, temperature=0.1)
+        data = generate_json(prompt, DUPLICATE_SCHEMA, temperature=0.0)
     except RuntimeError:
         return False
 
-    return bool(data.get("is_duplicate")) and float(data.get("confidence", 0)) >= 0.65
+    try:
+        confidence = float(data.get("confidence", 0))
+    except (TypeError, ValueError):
+        return False
+
+    return bool(data.get("is_duplicate")) and confidence >= 0.65
 
 
 def is_duplicate_with_selected(candidate, selected):
