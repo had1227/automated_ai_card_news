@@ -110,6 +110,19 @@ def test_is_probably_recent_by_llm_rejects_confident_old_judgment(monkeypatch):
     assert not is_probably_recent_by_llm("Title", "Body", now=datetime(2026, 5, 21, tzinfo=timezone.utc))
 
 
+def test_is_probably_recent_by_llm_rejects_threshold_old_judgment(monkeypatch):
+    monkeypatch.setattr(
+        collector,
+        "call_recency_llm",
+        lambda title, text, now=None: {
+            "is_recent": False,
+            "confidence": collector.LLM_RECENCY_CONFIDENCE_THRESHOLD,
+        },
+    )
+
+    assert not is_probably_recent_by_llm("Title", "Body", now=datetime(2026, 5, 21, tzinfo=timezone.utc))
+
+
 def test_is_probably_recent_by_llm_handles_string_boolean(monkeypatch):
     monkeypatch.setattr(collector, "call_recency_llm", lambda title, text, now=None: {"is_recent": "false", "confidence": 0.9})
 
