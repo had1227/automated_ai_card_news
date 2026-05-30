@@ -16,6 +16,7 @@ INPUT_PATH = Path("data/top_news.json")
 OUTPUT_PATH = Path("data/news_facts.json")
 MAX_CLUSTER_TEXT_CHARS = 2800
 MAX_ARTICLE_TEXT_CHARS = 5000
+MAX_ARTICLE_HTML_BYTES = 1_000_000
 
 ARTICLE_SCHEMA = {
     "type": "object",
@@ -173,12 +174,14 @@ def fetch_article_text(url):
                 )
             },
             timeout=15,
+            stream=True,
         )
         response.raise_for_status()
     except requests.RequestException:
         return ""
 
-    soup = BeautifulSoup(response.text, "html.parser")
+    html = _response_text_up_to_cap(response)
+    soup = BeautifulSoup(html, "html.parser")
     for element in soup(["script", "style", "nav", "header", "footer", "noscript"]):
         element.decompose()
 
@@ -190,6 +193,35 @@ def fetch_article_text(url):
         paragraphs.append(text)
 
     return "\n".join(paragraphs)[:MAX_ARTICLE_TEXT_CHARS]
+
+
+def _response_text_up_to_cap(response):
+    chunks = []
+    remaining = MAX_ARTICLE_HTML_BYTES
+
+    if hasattr(response, "iter_content"):
+        for chunk in response.iter_content(chunk_size=8192):
+            if not chunk:
+                continue
+            if isinstance(chunk, str):
+                chunk = chunk.encode(
+                    getattr(response, "encoding", None) or "utf-8",
+                    errors="replace",
+                )
+            chunks.append(chunk[:remaining])
+            remaining -= len(chunks[-1])
+            if remaining <= 0:
+                break
+        content = b"".join(chunks)
+    elif hasattr(response, "content"):
+        content = response.content[:MAX_ARTICLE_HTML_BYTES]
+        if isinstance(content, str):
+            return content
+    else:
+        return str(getattr(response, "text", ""))[:MAX_ARTICLE_HTML_BYTES]
+
+    encoding = getattr(response, "encoding", None) or "utf-8"
+    return content.decode(encoding, errors="replace")
 
 
 def _first_published_at(item):
@@ -323,16 +355,9 @@ def normalize_record(rank, item, data):
     record["source_domain"] = clean_domain(fallback["url"])
     record["category"] = _clean_text(record.get("category")) or fallback["category"]
     record["summary"] = _clean_text(record.get("summary")) or fallback["summary"]
-    record["korean_title"] = (
-        _clean_text(record.get("korean_title")) or fallback["korean_title"]
-    )
-    record["article_body"] = _as_text_list(
-        record.get("article_body"),
-        fallback["article_body"],
-    )
-    record["published_at"] = (
-        _clean_text(record.get("published_at")) or fallback["published_at"]
-    )
+    record["korean_title"] = _clean_text(llm_data.get("korean_title"))
+    record["article_body"] = _as_text_list(llm_data.get("article_body"))
+    record["published_at"] = fallback["published_at"]
     record["facts"] = _as_text_list(record.get("facts"), fallback["facts"])
     record["evidence"] = _as_text_list(record.get("evidence"), fallback["evidence"])
     record["entities"] = _as_text_list(record.get("entities"), [])

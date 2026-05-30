@@ -102,6 +102,8 @@ def validate_fact_record(record):
         for paragraph in article_body
     ):
         raise ValueError("fact_record.article_body must contain non-empty paragraphs")
+    if len(article_body) > 4:
+        raise ValueError("fact_record.article_body must contain at most 4 paragraphs")
     facts = _require_list(record, "facts", "fact_record")
     evidence = _require_list(record, "evidence", "fact_record")
     _require_list(record, "entities", "fact_record")

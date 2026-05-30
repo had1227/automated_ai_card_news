@@ -122,6 +122,13 @@ def test_validate_fact_record_requires_korean_article_body():
         validate_fact_record(record)
 
 
+def test_validate_fact_record_rejects_more_than_four_article_body_paragraphs():
+    record = _valid_fact_record(article_body=["one", "two", "three", "four", "five"])
+
+    with pytest.raises(ValueError, match="article_body"):
+        validate_fact_record(record)
+
+
 def test_validate_fact_record_requires_korean_title():
     record = _valid_fact_record(korean_title=" ")
 

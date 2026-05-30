@@ -70,7 +70,7 @@ def test_fetch_article_text_extracts_visible_article_paragraphs(monkeypatch):
 
     monkeypatch.setattr(
         "fact_extractor.requests.get",
-        lambda url, headers=None, timeout=None: Response(),
+        lambda url, headers=None, timeout=None, stream=False: Response(),
     )
 
     text = fetch_article_text("https://example.com/story")
@@ -101,13 +101,43 @@ def test_fetch_article_text_truncates_to_max_article_text_chars(monkeypatch):
 
     monkeypatch.setattr(
         "fact_extractor.requests.get",
-        lambda url, headers=None, timeout=None: Response(),
+        lambda url, headers=None, timeout=None, stream=False: Response(),
     )
 
     text = fetch_article_text("https://example.com/story")
 
     assert text == long_text[: fact_extractor.MAX_ARTICLE_TEXT_CHARS]
     assert len(text) == fact_extractor.MAX_ARTICLE_TEXT_CHARS
+
+
+def test_fetch_article_text_caps_html_bytes_before_parsing(monkeypatch):
+    large_paragraph = "A" * (fact_extractor.MAX_ARTICLE_HTML_BYTES + 500)
+
+    class Response:
+        encoding = "utf-8"
+
+        def raise_for_status(self):
+            return None
+
+        def iter_content(self, chunk_size=8192):
+            yield b"<html><body><article><p>"
+            yield large_paragraph.encode("utf-8")
+            yield b"</p><p>This paragraph is beyond the cap and should be absent.</p>"
+            yield b"</article></body></html>"
+
+    seen = {}
+
+    def fake_get(url, headers=None, timeout=None, stream=False):
+        seen["stream"] = stream
+        return Response()
+
+    monkeypatch.setattr("fact_extractor.requests.get", fake_get)
+
+    text = fetch_article_text("https://example.com/story")
+
+    assert seen["stream"] is True
+    assert len(text) == fact_extractor.MAX_ARTICLE_TEXT_CHARS
+    assert "beyond the cap" not in text
 
 
 def test_as_text_list_discards_nested_values_and_empty_strings():
@@ -179,7 +209,7 @@ def test_normalize_record_validates_record_after_cleaning_llm_data():
         "title": "",
         "korean_title": "  한국어 제목  ",
         "article_body": [" 첫 문단 ", "", {"bad": "value"}, " 둘째 문단 "],
-        "published_at": " 2026-05-24T00:00:00+00:00 ",
+        "published_at": " 2099-01-01T00:00:00+00:00 ",
         "facts": ["", {"bad": "value"}],
         "evidence": [["nested"], ""],
     }
@@ -189,10 +219,71 @@ def test_normalize_record_validates_record_after_cleaning_llm_data():
     validate_fact_record(record)
     assert record["korean_title"] == "한국어 제목"
     assert record["article_body"] == ["첫 문단", "둘째 문단"]
-    assert record["published_at"] == "2026-05-24T00:00:00+00:00"
+    assert record["published_at"] == ""
     assert record["facts"] == ["Cluster text"]
     assert "Cluster text" in record["evidence"]
     assert any("Source 1" in evidence for evidence in record["evidence"])
+
+
+@pytest.mark.parametrize(
+    "llm_overrides,match",
+    [
+        ({"korean_title": ""}, "korean_title"),
+        ({"article_body": []}, "article_body"),
+    ],
+)
+def test_normalize_record_fails_closed_when_required_korean_output_is_empty(
+    llm_overrides,
+    match,
+):
+    item = {
+        "title": "English title",
+        "summary": "English summary",
+        "url": "https://example.com/story",
+        "category": "release",
+        "cluster": [],
+    }
+    llm_data = {
+        "title": "Model title",
+        "korean_title": "한국어 제목",
+        "summary": "한국어 요약",
+        "article_body": ["한국어 본문"],
+        "facts": ["A fact"],
+        "evidence": ["Evidence"],
+        "entities": [],
+        "numbers": [],
+        "confidence": 0.8,
+    }
+    llm_data.update(llm_overrides)
+
+    with pytest.raises(ValueError, match=match):
+        normalize_record(1, item, llm_data)
+
+
+def test_normalize_record_ignores_model_published_at():
+    item = {
+        "title": "Article",
+        "summary": "Summary",
+        "url": "https://example.com/story",
+        "category": "release",
+        "published_at": "2026-05-24T03:00:00+00:00",
+        "cluster": [],
+    }
+    llm_data = {
+        "korean_title": "한국어 제목",
+        "summary": "한국어 요약",
+        "article_body": ["한국어 본문"],
+        "published_at": "2099-01-01T00:00:00+00:00",
+        "facts": ["A fact"],
+        "evidence": ["Evidence"],
+        "entities": [],
+        "numbers": [],
+        "confidence": 0.8,
+    }
+
+    record = normalize_record(1, item, llm_data)
+
+    assert record["published_at"] == "2026-05-24T03:00:00+00:00"
 
 
 def test_extract_fact_record_propagates_generation_failure(monkeypatch):
