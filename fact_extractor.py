@@ -180,7 +180,11 @@ def fetch_article_text(url):
     except requests.RequestException:
         return ""
 
-    html = _response_text_up_to_cap(response)
+    try:
+        html = _response_text_up_to_cap(response)
+    except requests.RequestException:
+        return ""
+
     soup = BeautifulSoup(html, "html.parser")
     for element in soup(["script", "style", "nav", "header", "footer", "noscript"]):
         element.decompose()

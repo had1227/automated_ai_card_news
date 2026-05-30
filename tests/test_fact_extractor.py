@@ -82,10 +82,26 @@ def test_fetch_article_text_extracts_visible_article_paragraphs(monkeypatch):
 
 
 def test_fetch_article_text_returns_empty_string_when_request_fails(monkeypatch):
-    def raise_request_exception(url, headers=None, timeout=None):
+    def raise_request_exception(url, headers=None, timeout=None, stream=False):
         raise requests.RequestException("network unavailable")
 
     monkeypatch.setattr("fact_extractor.requests.get", raise_request_exception)
+
+    assert fetch_article_text("https://example.com/story") == ""
+
+
+def test_fetch_article_text_returns_empty_string_when_stream_fails(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def iter_content(self, chunk_size=8192):
+            raise requests.RequestException("stream failed")
+
+    monkeypatch.setattr(
+        "fact_extractor.requests.get",
+        lambda url, headers=None, timeout=None, stream=False: Response(),
+    )
 
     assert fetch_article_text("https://example.com/story") == ""
 
@@ -245,6 +261,40 @@ def test_normalize_record_fails_closed_when_required_korean_output_is_empty(
     }
     llm_data = {
         "title": "Model title",
+        "korean_title": "한국어 제목",
+        "summary": "한국어 요약",
+        "article_body": ["한국어 본문"],
+        "facts": ["A fact"],
+        "evidence": ["Evidence"],
+        "entities": [],
+        "numbers": [],
+        "confidence": 0.8,
+    }
+    llm_data.update(llm_overrides)
+
+    with pytest.raises(ValueError, match=match):
+        normalize_record(1, item, llm_data)
+
+
+@pytest.mark.parametrize(
+    "llm_overrides,match",
+    [
+        ({"korean_title": "English title"}, "korean_title"),
+        ({"article_body": ["English article body"]}, "article_body"),
+    ],
+)
+def test_normalize_record_fails_closed_when_required_korean_output_is_english(
+    llm_overrides,
+    match,
+):
+    item = {
+        "title": "English title",
+        "summary": "English summary",
+        "url": "https://example.com/story",
+        "category": "release",
+        "cluster": [],
+    }
+    llm_data = {
         "korean_title": "한국어 제목",
         "summary": "한국어 요약",
         "article_body": ["한국어 본문"],

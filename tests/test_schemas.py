@@ -136,6 +136,16 @@ def test_validate_fact_record_requires_korean_title():
         validate_fact_record(record)
 
 
+def test_validate_fact_record_requires_korean_text_in_title_and_body():
+    title_record = _valid_fact_record(korean_title="Open model release")
+    with pytest.raises(ValueError, match="korean_title"):
+        validate_fact_record(title_record)
+
+    body_record = _valid_fact_record(article_body=["A model was released."])
+    with pytest.raises(ValueError, match="article_body"):
+        validate_fact_record(body_record)
+
+
 def test_validate_fact_record_requires_published_at_field():
     record = _valid_fact_record()
     del record["published_at"]
