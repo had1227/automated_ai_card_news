@@ -265,6 +265,7 @@ def test_extract_fact_record_uses_article_schema_temperature_and_normalizes_kore
     assert len(calls) == 1
     assert calls[0]["schema"] is fact_extractor.ARTICLE_SCHEMA
     assert calls[0]["temperature"] == 0.1
+    assert calls[0]["schema"]["properties"]["article_body"]["maxItems"] == 4
     assert "korean_title" in calls[0]["prompt"]
     assert record == {
         "rank": 2,

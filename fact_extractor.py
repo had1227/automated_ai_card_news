@@ -31,6 +31,7 @@ ARTICLE_SCHEMA = {
             "type": "array",
             "items": {"type": "string"},
             "minItems": 1,
+            "maxItems": 4,
         },
         "published_at": {"type": "string"},
         "facts": {
