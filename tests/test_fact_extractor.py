@@ -1,7 +1,9 @@
 import json
 
 import pytest
+import requests
 
+import fact_extractor
 from fact_extractor import (
     _as_text_list,
     build_prompt,
@@ -77,6 +79,35 @@ def test_fetch_article_text_extracts_visible_article_paragraphs(monkeypatch):
     assert "pricing and supported context limits" in text
     assert "ignore this" not in text
     assert "Navigation should be omitted" not in text
+
+
+def test_fetch_article_text_returns_empty_string_when_request_fails(monkeypatch):
+    def raise_request_exception(url, headers=None, timeout=None):
+        raise requests.RequestException("network unavailable")
+
+    monkeypatch.setattr("fact_extractor.requests.get", raise_request_exception)
+
+    assert fetch_article_text("https://example.com/story") == ""
+
+
+def test_fetch_article_text_truncates_to_max_article_text_chars(monkeypatch):
+    long_text = "A" * (fact_extractor.MAX_ARTICLE_TEXT_CHARS + 200)
+
+    class Response:
+        text = f"<html><body><article><p>{long_text}</p></article></body></html>"
+
+        def raise_for_status(self):
+            return None
+
+    monkeypatch.setattr(
+        "fact_extractor.requests.get",
+        lambda url, headers=None, timeout=None: Response(),
+    )
+
+    text = fetch_article_text("https://example.com/story")
+
+    assert text == long_text[: fact_extractor.MAX_ARTICLE_TEXT_CHARS]
+    assert len(text) == fact_extractor.MAX_ARTICLE_TEXT_CHARS
 
 
 def test_as_text_list_discards_nested_values_and_empty_strings():
@@ -184,3 +215,89 @@ def test_extract_fact_record_propagates_generation_failure(monkeypatch):
                 "cluster": [],
             },
         )
+
+
+def test_extract_fact_record_uses_article_schema_temperature_and_normalizes_korean_record(
+    monkeypatch,
+):
+    calls = []
+
+    def fake_generate_json(prompt, schema, temperature=None):
+        calls.append(
+            {
+                "prompt": prompt,
+                "schema": schema,
+                "temperature": temperature,
+            }
+        )
+        return {
+            "rank": 999,
+            "title": "  Gemini API update  ",
+            "korean_title": "  제미나이 API 업데이트  ",
+            "url": "https://malicious.example/changed",
+            "source_domain": "malicious.example",
+            "category": "  models  ",
+            "summary": "  개발자를 위한 한국어 요약입니다.  ",
+            "article_body": ["  첫 번째 한국어 문단입니다.  ", "", {"bad": "value"}],
+            "published_at": " 2026-05-24T03:00:00+00:00 ",
+            "facts": ["  Gemini API가 업데이트되었습니다.  "],
+            "evidence": ["  공식 발표에 API 업데이트가 설명되어 있습니다.  "],
+            "entities": ["  Gemini API  "],
+            "numbers": ["  2026  "],
+            "confidence": 1.5,
+        }
+
+    monkeypatch.setattr("fact_extractor.generate_json", fake_generate_json)
+    monkeypatch.setattr("fact_extractor.fetch_article_text", lambda url: "")
+
+    record = extract_fact_record(
+        2,
+        {
+            "title": "Gemini API update",
+            "summary": "Gemini API was updated for developers.",
+            "url": "https://example.com/story",
+            "category": "release",
+            "published_at": "2026-05-24T03:00:00+00:00",
+            "cluster": [],
+        },
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["schema"] is fact_extractor.ARTICLE_SCHEMA
+    assert calls[0]["temperature"] == 0.1
+    assert "korean_title" in calls[0]["prompt"]
+    assert record == {
+        "rank": 2,
+        "title": "Gemini API update",
+        "korean_title": "제미나이 API 업데이트",
+        "url": "https://example.com/story",
+        "source_domain": "example.com",
+        "category": "models",
+        "summary": "개발자를 위한 한국어 요약입니다.",
+        "article_body": ["첫 번째 한국어 문단입니다."],
+        "published_at": "2026-05-24T03:00:00+00:00",
+        "facts": ["Gemini API가 업데이트되었습니다."],
+        "evidence": ["공식 발표에 API 업데이트가 설명되어 있습니다."],
+        "entities": ["Gemini API"],
+        "numbers": ["2026"],
+        "confidence": 1.0,
+    }
+    validate_fact_record(record)
+
+
+def test_main_propagates_extraction_errors_without_saving(monkeypatch):
+    monkeypatch.setattr(
+        "fact_extractor.load_top_news",
+        lambda: [{"title": "Article", "url": "https://example.com/story"}],
+    )
+    monkeypatch.setattr(
+        "fact_extractor.extract_fact_record",
+        lambda rank, item: (_ for _ in ()).throw(RuntimeError("Gemini unavailable")),
+    )
+    monkeypatch.setattr(
+        "fact_extractor.save_facts",
+        lambda records: pytest.fail("save_facts should not be called"),
+    )
+
+    with pytest.raises(RuntimeError, match="Gemini unavailable"):
+        fact_extractor.main()
