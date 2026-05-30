@@ -279,7 +279,6 @@ def fallback_record(rank, item):
         "numbers": [],
         "confidence": 0.55,
     }
-    validate_fact_record(record)
     return record
 
 

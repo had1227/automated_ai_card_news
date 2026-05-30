@@ -212,6 +212,26 @@ def test_fallback_record_propagates_cluster_publication_date():
     assert record["published_at"] == "2026-05-24T03:00:00+00:00"
 
 
+def test_build_prompt_allows_english_source_material_before_gemini_translation(
+    monkeypatch,
+):
+    monkeypatch.setattr("fact_extractor.fetch_article_text", lambda url: "")
+
+    prompt = build_prompt(
+        1,
+        {
+            "title": "Open model ships",
+            "summary": "An AI lab released a new model.",
+            "url": "https://example.com/story",
+            "category": "release",
+            "cluster": [],
+        },
+    )
+
+    assert "Open model ships" in prompt
+    assert "Write korean_title, summary, and article_body in Korean." in prompt
+
+
 def test_normalize_record_validates_record_after_cleaning_llm_data():
     item = {
         "title": "",
