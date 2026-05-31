@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
-import requests
-import time
+
+from llm_client import generate_json
 
 
 INPUT_PATH = Path("data/items.json")
@@ -16,10 +16,43 @@ TOP_N = 10
 SIM_THRESHOLD = 0.78
 MAX_EVALUATION_TEXT_CHARS = 1200
 
-MODEL = "gemma4:e4b"
-OLLAMA_URL = "http://localhost:11434/api/generate"
-
 model = SentenceTransformer("all-MiniLM-L6-v2")
+
+CLUSTER_EVALUATION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "is_ai_news": {"type": "boolean"},
+        "is_card_news_worthy": {"type": "boolean"},
+        "category": {"type": "string"},
+        "importance": {"type": "number", "minimum": 0, "maximum": 10},
+        "trending": {"type": "number", "minimum": 0, "maximum": 10},
+        "novelty": {"type": "number", "minimum": 0, "maximum": 10},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 10},
+        "reason": {"type": "string"},
+        "one_line_summary": {"type": "string"},
+    },
+    "required": [
+        "is_ai_news",
+        "is_card_news_worthy",
+        "category",
+        "importance",
+        "trending",
+        "novelty",
+        "confidence",
+        "reason",
+        "one_line_summary",
+    ],
+}
+
+DUPLICATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "is_duplicate": {"type": "boolean"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "reason": {"type": "string"},
+    },
+    "required": ["is_duplicate", "confidence", "reason"],
+}
 
 
 def load_items():
@@ -77,30 +110,6 @@ def cluster(items, emb):
     return clusters
 
 
-def ollama_json(prompt, max_retries=2, timeout=120):
-    for attempt in range(max_retries + 1):
-        try:
-            res = requests.post(
-                OLLAMA_URL,
-                json={
-                    "model": MODEL,
-                    "prompt": prompt,
-                    "stream": False,
-                    "format": "json",
-                    "options": {"temperature": 0.1}
-                },
-                timeout=timeout,
-            )
-            res.raise_for_status()
-            return json.loads(res.json()["response"])
-
-        except Exception as e:
-            if attempt >= max_retries:
-                print(f"[WARN] Ollama 실패 - {e}")
-                return None
-            time.sleep(1.5 * (attempt + 1))
-
-
 def ai_evaluate_cluster(cluster, max_retries=2):
     titles = "\n".join([f"- {i['title']}" for i in cluster[:5]])
     texts = "\n".join(
@@ -139,7 +148,11 @@ def ai_evaluate_cluster(cluster, max_retries=2):
 내용:
 {texts}
 """
-    return ollama_json(prompt, max_retries=max_retries)
+    try:
+        return generate_json(prompt, CLUSTER_EVALUATION_SCHEMA, temperature=0.1)
+    except RuntimeError as exc:
+        print(f"[WARN] Gemini evaluation failure: {exc}")
+        return None
 
 
 def representative(cluster):
@@ -184,12 +197,17 @@ def ai_is_duplicate(candidate, selected_item, max_retries=1):
 카테고리: {selected_item.get("category")}
 이유: {selected_item.get("reason")}
 """
-    data = ollama_json(prompt, max_retries=max_retries, timeout=90)
-
-    if not data:
+    try:
+        data = generate_json(prompt, DUPLICATE_SCHEMA, temperature=0.0)
+    except RuntimeError:
         return False
 
-    return bool(data.get("is_duplicate")) and float(data.get("confidence", 0)) >= 0.65
+    try:
+        confidence = float(data.get("confidence", 0))
+    except (TypeError, ValueError):
+        return False
+
+    return bool(data.get("is_duplicate")) and confidence >= 0.65
 
 
 def is_duplicate_with_selected(candidate, selected):

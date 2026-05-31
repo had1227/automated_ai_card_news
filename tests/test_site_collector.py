@@ -54,14 +54,71 @@ def test_should_keep_article_uses_llm_when_date_is_missing(monkeypatch):
     )
 
 
+def test_call_recency_llm_uses_gemini_structured_json(monkeypatch):
+    calls = []
+
+    def fake_generate_json(prompt, response_schema, temperature=0.1):
+        calls.append(
+            {
+                "prompt": prompt,
+                "response_schema": response_schema,
+                "temperature": temperature,
+            }
+        )
+        return {
+            "is_recent": True,
+            "published_date": "2026-05-24",
+            "confidence": 0.8,
+            "reason": "Article mentions a May 24, 2026 release.",
+        }
+
+    monkeypatch.setattr(collector, "generate_json", fake_generate_json)
+
+    result = collector.call_recency_llm("New model", "Released on May 24, 2026.")
+
+    assert result == {
+        "is_recent": True,
+        "published_date": "2026-05-24",
+        "confidence": 0.8,
+        "reason": "Article mentions a May 24, 2026 release.",
+    }
+    assert len(calls) == 1
+    assert "New model" in calls[0]["prompt"]
+    assert "Released on May 24, 2026." in calls[0]["prompt"]
+    assert calls[0]["response_schema"] == collector.RECENCY_SCHEMA
+    assert calls[0]["temperature"] == 0.0
+    confidence_schema = collector.RECENCY_SCHEMA["properties"]["confidence"]
+    assert confidence_schema["minimum"] == 0.0
+    assert confidence_schema["maximum"] == 1.0
+
+
 def test_is_probably_recent_by_llm_keeps_uncertain_or_failed_judgments(monkeypatch):
     monkeypatch.setattr(collector, "call_recency_llm", lambda title, text, now=None: {"is_recent": False, "confidence": 0.4})
 
     assert is_probably_recent_by_llm("Title", "Body", now=datetime(2026, 5, 21, tzinfo=timezone.utc))
 
 
+def test_is_probably_recent_by_llm_keeps_non_dict_judgment(monkeypatch):
+    monkeypatch.setattr(collector, "call_recency_llm", lambda title, text, now=None: [])
+
+    assert is_probably_recent_by_llm("Title", "Body", now=datetime(2026, 5, 21, tzinfo=timezone.utc))
+
+
 def test_is_probably_recent_by_llm_rejects_confident_old_judgment(monkeypatch):
     monkeypatch.setattr(collector, "call_recency_llm", lambda title, text, now=None: {"is_recent": False, "confidence": 0.9})
+
+    assert not is_probably_recent_by_llm("Title", "Body", now=datetime(2026, 5, 21, tzinfo=timezone.utc))
+
+
+def test_is_probably_recent_by_llm_rejects_threshold_old_judgment(monkeypatch):
+    monkeypatch.setattr(
+        collector,
+        "call_recency_llm",
+        lambda title, text, now=None: {
+            "is_recent": False,
+            "confidence": collector.LLM_RECENCY_CONFIDENCE_THRESHOLD,
+        },
+    )
 
     assert not is_probably_recent_by_llm("Title", "Body", now=datetime(2026, 5, 21, tzinfo=timezone.utc))
 

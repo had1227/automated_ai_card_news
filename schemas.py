@@ -24,6 +24,10 @@ def _require_non_empty_text(data, field, label):
         raise ValueError(f"{label}.{field} must be non-empty text")
 
 
+def _contains_hangul(value):
+    return any("\uac00" <= char <= "\ud7a3" for char in str(value or ""))
+
+
 def _require_list(data, field, label):
     value = data.get(field)
     if not isinstance(value, list):
@@ -83,6 +87,9 @@ def validate_fact_record(record):
         "source_domain",
         "category",
         "summary",
+        "korean_title",
+        "article_body",
+        "published_at",
         "facts",
         "evidence",
         "entities",
@@ -91,7 +98,20 @@ def validate_fact_record(record):
     ]
     _require_fields(record, required, "fact_record")
     _require_non_empty_text(record, "title", "fact_record")
+    _require_non_empty_text(record, "korean_title", "fact_record")
+    if not _contains_hangul(record["korean_title"]):
+        raise ValueError("fact_record.korean_title must contain Korean text")
     _require_non_empty_text(record, "url", "fact_record")
+    article_body = _require_list(record, "article_body", "fact_record")
+    if not article_body or not all(
+        isinstance(paragraph, str) and paragraph.strip()
+        for paragraph in article_body
+    ):
+        raise ValueError("fact_record.article_body must contain non-empty paragraphs")
+    if len(article_body) > 4:
+        raise ValueError("fact_record.article_body must contain at most 4 paragraphs")
+    if not all(_contains_hangul(paragraph) for paragraph in article_body):
+        raise ValueError("fact_record.article_body must contain Korean text")
     facts = _require_list(record, "facts", "fact_record")
     evidence = _require_list(record, "evidence", "fact_record")
     _require_list(record, "entities", "fact_record")

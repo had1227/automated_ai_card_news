@@ -31,6 +31,9 @@ def _valid_fact_record(**overrides):
         "source_domain": "example.com",
         "category": "model_release",
         "summary": "A model was released.",
+        "korean_title": "새 모델 공개",
+        "article_body": ["새 모델이 공개됐다. 개발자는 API를 통해 사용할 수 있다."],
+        "published_at": "2026-05-24T00:00:00+00:00",
         "facts": ["A model was released."],
         "evidence": ["https://example.com/news"],
         "entities": ["Example AI"],
@@ -109,6 +112,45 @@ def test_validate_fact_record_requires_evidence():
     record = _valid_fact_record(evidence=[])
 
     with pytest.raises(ValueError, match="evidence"):
+        validate_fact_record(record)
+
+
+def test_validate_fact_record_requires_korean_article_body():
+    record = _valid_fact_record(article_body=[])
+
+    with pytest.raises(ValueError, match="article_body"):
+        validate_fact_record(record)
+
+
+def test_validate_fact_record_rejects_more_than_four_article_body_paragraphs():
+    record = _valid_fact_record(article_body=["one", "two", "three", "four", "five"])
+
+    with pytest.raises(ValueError, match="article_body"):
+        validate_fact_record(record)
+
+
+def test_validate_fact_record_requires_korean_title():
+    record = _valid_fact_record(korean_title=" ")
+
+    with pytest.raises(ValueError, match="korean_title"):
+        validate_fact_record(record)
+
+
+def test_validate_fact_record_requires_korean_text_in_title_and_body():
+    title_record = _valid_fact_record(korean_title="Open model release")
+    with pytest.raises(ValueError, match="korean_title"):
+        validate_fact_record(title_record)
+
+    body_record = _valid_fact_record(article_body=["A model was released."])
+    with pytest.raises(ValueError, match="article_body"):
+        validate_fact_record(body_record)
+
+
+def test_validate_fact_record_requires_published_at_field():
+    record = _valid_fact_record()
+    del record["published_at"]
+
+    with pytest.raises(ValueError, match="published_at"):
         validate_fact_record(record)
 
 
