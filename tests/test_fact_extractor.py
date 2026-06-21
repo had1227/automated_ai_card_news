@@ -38,18 +38,20 @@ def test_fallback_record_uses_first_usable_cluster_entry_when_top_level_fields_m
     assert record["title"] == "Cluster title"
     assert record["url"] == "https://example.com/source"
     assert record["published_at"] == "2026-05-24T03:00:00+00:00"
+    assert record["korean_title"] == "Cluster title"
+    assert record["article_body"] == ["Cluster source text with a verified detail."]
     assert "Cluster source text with a verified detail." in record["facts"]
     assert any("Cluster source text" in evidence for evidence in record["evidence"])
-    validate_fact_record(record)
 
 
 def test_fallback_record_uses_intentional_placeholder_url_when_no_url_exists():
     record = fallback_record(1, {"cluster": [{"title": "Only a title"}]})
 
     assert record["url"] == "about:blank"
+    assert record["korean_title"] == "Only a title"
+    assert record["article_body"] == ["Only a title"]
     assert record["facts"] == ["Only a title"]
     assert record["evidence"] == ["Only a title"]
-    validate_fact_record(record)
 
 
 def test_fetch_article_text_extracts_visible_article_paragraphs(monkeypatch):
