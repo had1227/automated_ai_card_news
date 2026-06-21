@@ -8,7 +8,7 @@
 2. Google AI Studio에서 Gemini API 키를 발급합니다.
 3. Google Cloud에서 Gmail API와 OAuth Desktop app을 설정합니다.
 4. 로컬에서 `scripts/gmail_authorize.py`를 실행해 Gmail refresh token을 발급합니다.
-5. GitHub Actions Secrets에 필요한 값을 6개 Secret으로 각각 등록합니다.
+5. GitHub Actions Secrets에 필요한 값을 각각 따로 등록합니다.
 6. GitHub Actions에서 `Weekly AI news email` 워크플로를 수동 실행해 테스트합니다.
 7. 이후에는 매주 월요일 오전 8시, Asia/Seoul 기준으로 자동 실행됩니다.
 
@@ -27,7 +27,15 @@ playwright install
 
 ## 2. Gemini API 키 발급
 
-Google AI Studio에서 Gemini API 키를 생성합니다. 이 값은 나중에 GitHub Actions Secret `GEMINI_API_KEY`에 등록합니다.
+Google AI Studio에서 Gemini API 키를 생성합니다. 키가 하나라면 나중에 GitHub Actions Secret `GEMINI_API_KEY`에 등록합니다.
+
+Gemini API 키가 여러 개라면 `GEMINI_API_KEYS` Secret 하나에 콤마로 구분해서 등록할 수 있습니다.
+
+```text
+key1,key2
+```
+
+이 경우 파이프라인은 Gemini 호출마다 키를 번갈아 사용하고, 한 키가 429 quota 오류를 내면 다음 키로 넘겨 재시도합니다.
 
 ## 3. Gmail API와 OAuth 설정
 
@@ -81,13 +89,14 @@ GitHub 저장소에서 아래 메뉴로 이동합니다.
 Settings > Secrets and variables > Actions > New repository secret
 ```
 
-Secret은 총 6개를 각각 따로 만들어야 합니다. `New repository secret`을 6번 눌러 아래 값을 하나씩 등록합니다.
+기본 Secret은 총 6개입니다. Gemini API 키를 여러 개 쓸 때는 `GEMINI_API_KEYS`를 추가로 등록할 수 있습니다. 각 항목은 `New repository secret`을 눌러 하나씩 따로 등록합니다.
 
 ### 등록해야 하는 Secret 목록
 
 | GitHub Secret Name | Secret에 넣을 값 |
 | --- | --- |
 | `GEMINI_API_KEY` | Google AI Studio에서 발급한 Gemini API 키 |
+| `GEMINI_API_KEYS` | 선택 사항. Gemini API 키 여러 개를 `key1,key2` 형태로 입력 |
 | `GMAIL_CLIENT_ID` | `scripts/gmail_authorize.py` 출력 중 `GMAIL_CLIENT_ID=` 뒤의 값 |
 | `GMAIL_CLIENT_SECRET` | `scripts/gmail_authorize.py` 출력 중 `GMAIL_CLIENT_SECRET=` 뒤의 값 |
 | `GMAIL_REFRESH_TOKEN` | `scripts/gmail_authorize.py` 출력 중 `GMAIL_REFRESH_TOKEN=` 뒤의 값 |
@@ -111,6 +120,15 @@ Name: GMAIL_CLIENT_ID
 Secret: 1848...apps.googleusercontent.com
 ```
 
+Gemini API 키를 2개 쓰려면 아래 Secret을 추가합니다.
+
+```text
+Name: GEMINI_API_KEYS
+Secret: 첫번째_Gemini_API_키,두번째_Gemini_API_키
+```
+
+`GEMINI_API_KEYS`를 등록하면 여러 키를 사용합니다. 등록하지 않으면 기존처럼 `GEMINI_API_KEY` 하나만 사용합니다.
+
 아래처럼 `Name`에 전체 줄을 넣으면 안 됩니다.
 
 ```text
@@ -123,6 +141,7 @@ Secret 이름에는 하이픈 `-`을 쓰지 말고 언더스코어 `_`를 사용
 
 ```text
 GEMINI_API_KEY
+GEMINI_API_KEYS
 GMAIL_CLIENT_ID
 GMAIL_CLIENT_SECRET
 GMAIL_REFRESH_TOKEN

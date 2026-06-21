@@ -40,6 +40,7 @@ def test_weekly_workflow_runs_pipeline_and_sends_html_email() -> None:
     assert "python run_pipeline.py --all" in workflow
     assert "python send_email.py" in workflow
     assert "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}" in workflow
+    assert "GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}" in workflow
     assert "GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}" in workflow
     assert "MAIL_FROM: ${{ secrets.MAIL_FROM }}" in workflow
     assert "MAIL_TO: ${{ secrets.MAIL_TO }}" in workflow
